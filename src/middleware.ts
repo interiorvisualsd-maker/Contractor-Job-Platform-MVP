@@ -3,9 +3,13 @@ import { verifyToken, ADMIN_COOKIE_NAME, CONTRACTOR_COOKIE_NAME } from "@/lib/au
 
 const PUBLIC_PATHS = ["/", "/submit", "/thank-you", "/api/admin/login", "/api/contractor/login", "/api/jobs"];
 
+// Login pages must be reachable without auth (otherwise infinite redirect loop)
+const LOGIN_PAGES = ["/admin/login", "/contractor/login"];
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  // Always allow public paths + Next.js internals
   if (
     PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
     pathname.startsWith("/_next") ||
@@ -15,7 +19,12 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Admin routes
+  // Always allow login pages themselves
+  if (LOGIN_PAGES.includes(pathname)) {
+    return NextResponse.next();
+  }
+
+  // Admin routes (except /admin/login which is allowed above)
   if (pathname.startsWith("/admin")) {
     const token = req.cookies.get(ADMIN_COOKIE_NAME)?.value;
     const payload = await verifyToken(token);
@@ -27,7 +36,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Contractor routes
+  // Contractor routes (except /contractor/login which is allowed above)
   if (pathname.startsWith("/contractor")) {
     const token = req.cookies.get(CONTRACTOR_COOKIE_NAME)?.value;
     const payload = await verifyToken(token);
